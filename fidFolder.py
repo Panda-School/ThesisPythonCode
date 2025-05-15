@@ -59,7 +59,7 @@ def compute_fid_between_folders(folder1, folder2, inputImages=None):
             features.append(feat)
         return np.array(features)
 
-    feats1 = load_folder_images(folder1) if inputImages is None else load_input_images(inputImages)
+    feats1 = load_folder_images(folder1) if inputImages is None else load_input_images(folder1)
     feats2 = load_folder_images(folder2)
 
     # Compute statistics
