@@ -1,37 +1,60 @@
 import torch
-from torchvision import datasets, transforms
-from torchmetrics.image.fid import FrechetInceptionDistance
-from torch.utils.data import DataLoader
+import numpy as np
+from torchvision.models import inception_v3
+from torchvision import transforms
+from scipy.linalg import sqrtm
+from PIL import Image
+from tqdm import tqdm
+import os
 
-# Paths to your image folders
-folder1 = 'pic1'
-folder2 = 'pic2'
-
-def calculate_fid_score(folder1, folder2):
-    # Basic transform: resize and normalize
-    transform = transforms.Compose([
+def get_inception_features(image, model, device):
+    """Extract features from InceptionV3 model."""
+    preprocess = transforms.Compose([
         transforms.Resize((299, 299)),
         transforms.ToTensor(),
+        transforms.Normalize([0.485, 0.456, 0.406],
+                             [0.229, 0.224, 0.225])
     ])
+    image = preprocess(image).unsqueeze(0).to(device)
+    
+    with torch.no_grad():
+        features = model(image)
+    
+    return features.cpu().numpy().reshape(-1)
 
-    # Load datasets (you still need dummy subfolders inside folders!)
-    dataset1 = datasets.ImageFolder(root=folder1, transform=transform)
-    dataset2 = datasets.ImageFolder(root=folder2, transform=transform)
+def calculate_fid(mu1, sigma1, mu2, sigma2):
+    """Compute Fréchet Inception Distance between two distributions."""
+    covmean, _ = sqrtm(sigma1 @ sigma2, disp=False)
+    
+    # Numerical stability fix
+    if np.iscomplexobj(covmean):
+        covmean = covmean.real
+    
+    fid = np.sum((mu1 - mu2) ** 2) + np.trace(sigma1 + sigma2 - 2.0 * covmean)
+    return fid
 
-    loader1 = DataLoader(dataset1, batch_size=32, shuffle=False)
-    loader2 = DataLoader(dataset2, batch_size=32, shuffle=False)
+def compute_fid_between_folders(folder1, folder2):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = inception_v3(pretrained=True, transform_input=False).to(device)
+    model.fc = torch.nn.Identity()  # Remove final classification layer
+    model.eval()
 
-    # Initialize FID metric on CPU
-    fid_metric = FrechetInceptionDistance(feature=2048, reset_real_features=False, normalize=True)
+    def load_folder_images(folder_path):
+        features = []
+        image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('png', 'jpg', 'jpeg'))]
+        for filename in tqdm(image_files, desc=f'Processing {folder_path}'):
+            image_path = os.path.join(folder_path, filename)
+            image = Image.open(image_path).convert('RGB')
+            feat = get_inception_features(image, model, device)
+            features.append(feat)
+        return np.array(features)
 
-    # Update with real images
-    for images, _ in loader1:
-        fid_metric.update(images, real=True)  # No .cuda()
+    feats1 = load_folder_images(folder1)
+    feats2 = load_folder_images(folder2)
 
-    # Update with generated images
-    for images, _ in loader2:
-        fid_metric.update(images, real=False)  # No .cuda()
+    # Compute statistics
+    mu1, sigma1 = feats1.mean(axis=0), np.cov(feats1, rowvar=False)
+    mu2, sigma2 = feats2.mean(axis=0), np.cov(feats2, rowvar=False)
 
-    # Compute FID score
-    fid_value = fid_metric.compute().item()
-    return fid_value
+    fid_score = calculate_fid(mu1, sigma1, mu2, sigma2)
+    return fid_score

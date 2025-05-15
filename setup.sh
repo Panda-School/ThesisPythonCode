@@ -5,3 +5,5 @@ wget https://hazeveld.org/thesis/flickr30k_images.tar.gz flickr30k_images.tar.gz
 
 tar -xvzf flickr30k_images.tar.gz -C ./images
 
+mkdir output
+
