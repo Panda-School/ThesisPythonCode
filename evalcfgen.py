@@ -86,7 +86,7 @@ def main(argv):
         caption_id: str = data[i]['captionID'].split("#")[0]
         if args.amount == "None":
             used_images.add(caption_id)
-        image = Image.open(f"{args.input}/{caption_id}").convert("RGB").to(device)
+        image = Image.open(f"{args.input}/{caption_id}").convert("RGB")
         prompt = data[i]['sentence2']
         genImage = pipe(
             prompt=prompt, 
