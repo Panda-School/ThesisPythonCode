@@ -10,3 +10,5 @@ ipywidgets
 protobuf==3.20.1
 sentencepiece
 bitsandbytes
+clip
+huggingface_hub
