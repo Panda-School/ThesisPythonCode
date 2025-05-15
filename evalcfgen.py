@@ -112,7 +112,7 @@ def main(argv):
         logger.info("Calculating fid-score")
         fid = compute_fid_between_folders(args.input, args.output) if args.amount == "None" else compute_fid_between_folders(args.input, args.output, inputImages=used_images)
         logger.info("Finished calculating fid-score")
-        print(f"Calcuted fid score: {fid}")
+        logger.info(f"Calcuted fid score: {fid}")
 
    
 if __name__ == "__main__":
