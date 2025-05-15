@@ -12,3 +12,4 @@ sentencepiece
 bitsandbytes
 clip
 huggingface_hub
+loguru

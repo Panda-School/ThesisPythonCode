@@ -1,5 +1,5 @@
 import sys, argparse, torch, json
-from huggingface_hub import interpreter_login
+from huggingface_hub import login
 from diffusers import StableDiffusion3Img2ImgPipeline
 import requests
 import torch
@@ -7,11 +7,11 @@ from PIL import Image
 from io import BytesIO
 from tqdm import tqdm
 import torch
-import logging
+from loguru import logger
 
 from PIL import Image
 
-def get_clip_score(image, prompt, clip, device="cpu"):
+def get_clip_score(genImage, prompt, clip, device="cpu"):
     # Load model and device
     assert device in ["cuda", "cpu"]
     model, preprocess = clip.load("ViT-B/32", device=device)
@@ -43,32 +43,36 @@ def main(argv):
     parser.add_argument("output", help="Path to folder to place the output images", type=str)
     parser.add_argument("--amount", help='Amount of images to process, choose "None" if all images should be processed', type=str, default="None")
     parser.add_argument("--dataset", help="Dataset jsonl location", type=str, required=True)
+    parser.add_argument("--token", help="Hugginface Token", type=str, required=True)
     parser.add_argument("--cuda", help="Use cuda or not", action="store_true")
+    parser.add_argument("--verbose", help="Log to terminal or not", action="store_true")
     parser.add_argument("--clip", help="Calculate clip scores", action="store_true")
     args = parser.parse_args()
 
+    loglevel = "DEBUG" if args.verbose else "INFO"
+    logger.add("eval-{time}.log", format="{name} {message}", level=loglevel, rotation="10 MB")
+
     #setup logging
-    logging.basicConfig(level=logging.INFO, filename="evalcfgen.log")
-    logging.info("Starting the programs")
+    logger.info("Starting the programs")
 
     if(args.clip):
         import clip as cp
 
     # Login to HuggingFace
-    interpreter_login()
-    logging.info("Successfully logged in to HuggingFace")
+    login(token=args.token)
+    logger.info("Successfully logged in to HuggingFace")
     
     #clip scores
     clip_scores=dict()
 
     # Loading the model's pipeline
     device = "cuda" if args.cuda else "cpu"
-    logging.info(f"Using device: {device}")
+    logger.info(f"Using device: {device}")
     pipe = StableDiffusion3Img2ImgPipeline.from_pretrained("stabilityai/stable-diffusion-3.5-large", torch_dtype=torch.bfloat16).to(device)
-    logging.info("Successfully loaded the model's pipeline")
+    logger.info("Successfully loaded the model's pipeline")
 
     # Loading the dataset
-    logging.info(f"Loading dataset from {args.dataset}")
+    logger.info(f"Loading dataset from {args.dataset}")
     with open(args.dataset, "r") as f:
         data = [json.loads(line) for line in f]
 
@@ -78,7 +82,7 @@ def main(argv):
         args.amount = int(args.amount)
 
     # Generating images
-    logging.info(f"Generating {args.amount} images")
+    logger.info(f"Generating {args.amount} images")
     for i in tqdm(range(args.amount), desc="Generating images"):
         caption_id: str = data[i]['captionID'].split("#")[0]
         image = Image.open(f"{args.input}/{caption_id}").convert("RGB")
@@ -91,13 +95,16 @@ def main(argv):
         ).images[0]
 
         genImage.save(f"output/{data[i]['captionID']}.png")
+
         if(args.clip):
-            clip_score = get_clip_score(genImage, prompt, cp, device=device)
+            img = Image.open(f"output/{data[i]['captionID']}.png")
+            clip_score = get_clip_score(img, prompt, cp, device=device)
             clip_scores[data[i]['captionID']] = clip_score
+        
         #print(f"CLIP score for image {data[i]['captionID']}: {clip_score}")
 
-    logging.info("Finished generating images")
-    logging.info("Saving clip scores")
+    logger.info("Finished generating images")
+    logger.info("Saving clip scores")
     if(args.clip):
         with open("clip_scores.json", "w") as f:
             json.dump(clip_scores, f)
