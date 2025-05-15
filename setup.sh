@@ -9,6 +9,7 @@ mkdir output
 
 wget https://github.com/cli/cli/releases/download/v2.72.0/gh_2.72.0_linux_amd64.deb
 dpkg -i gh_2.72.0_linux_amd64.deb
+rm gh_2.72.0_linux_amd64.deb
 gh auth login
 
 git config --global user.email "basvthazeveld@outlook.com"
