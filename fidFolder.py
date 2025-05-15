@@ -33,7 +33,7 @@ def calculate_fid(mu1, sigma1, mu2, sigma2):
     fid = np.sum((mu1 - mu2) ** 2) + np.trace(sigma1 + sigma2 - 2.0 * covmean)
     return fid
 
-def compute_fid_between_folders(folder1, folder2):
+def compute_fid_between_folders(folder1, folder2, amount=None):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = inception_v3(pretrained=True, transform_input=False).to(device)
     model.fc = torch.nn.Identity()  # Remove final classification layer
@@ -42,6 +42,8 @@ def compute_fid_between_folders(folder1, folder2):
     def load_folder_images(folder_path):
         features = []
         image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('png', 'jpg', 'jpeg'))]
+        if amount is not None:
+            image_files = image_files[:amount]
         for filename in tqdm(image_files, desc=f'Processing {folder_path}'):
             image_path = os.path.join(folder_path, filename)
             image = Image.open(image_path).convert('RGB')
