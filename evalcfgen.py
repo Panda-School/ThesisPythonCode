@@ -110,8 +110,7 @@ def main(argv):
             json.dump(clip_scores, f)
     if args.fid:
         logger.info("Calculating fid-score")
-        amount = None if args.amount == "None" else args.amount
-        fid = compute_fid_between_folders(args.input, args.output, amount=amount)
+        fid = compute_fid_between_folders(args.input, args.output) if args.amount == "None" else compute_fid_between_folders(args.input, args.output, inputImages=used_images)
         logger.info("Finished calculating fid-score")
         print(f"Calcuted fid score: {fid}")
 

@@ -51,7 +51,7 @@ def compute_fid_between_folders(folder1, folder2, inputImages=None):
 
     def load_input_images(folder_path):
         features = []
-        image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('png', 'jpg', 'jpeg'))]
+        #image_files = [f for f in os.listdir(folder_path) if f.lower().endswith(('png', 'jpg', 'jpeg'))]
         for filename in tqdm(inputImages, desc=f'Processing input images'):
             image_path = os.path.join(folder_path, filename)
             image = Image.open(image_path).convert('RGB')
