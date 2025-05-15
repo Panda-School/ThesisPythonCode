@@ -7,3 +7,5 @@ tar -xzf flickr30k_images.tar.gz
 
 mkdir output
 
+git config --global user.email "basvthazeveld@outlook.com"
+git config --global user.name "Bas van 't Hazeveld"
