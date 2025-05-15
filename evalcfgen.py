@@ -1,15 +1,10 @@
 import sys, argparse, torch, json
 from huggingface_hub import login
 from diffusers import StableDiffusion3Img2ImgPipeline
-import requests
-import torch
 from PIL import Image
-from io import BytesIO
 from tqdm import tqdm
-import torch
 from loguru import logger
-
-from PIL import Image
+from fidFolder import compute_fid_between_folders
 
 def get_clip_score(genImage, prompt, clip, device="cpu"):
     # Load model and device
@@ -47,6 +42,7 @@ def main(argv):
     parser.add_argument("--cuda", help="Use cuda or not", action="store_true")
     parser.add_argument("--verbose", help="Log to terminal or not", action="store_true")
     parser.add_argument("--clip", help="Calculate clip scores", action="store_true")
+    parser.add_argument("--fid", help="Use fid or not", action="store_true")
     args = parser.parse_args()
 
     loglevel = "DEBUG" if args.verbose else "INFO"
@@ -76,16 +72,21 @@ def main(argv):
     with open(args.dataset, "r") as f:
         data = [json.loads(line) for line in f]
 
+    used_images = set() if args.amount != "None" else None
+    am = 1
+
     if args.amount == "None":
-        args.amount = len(data)
+        am = len(data)
     else:
-        args.amount = int(args.amount)
+        am = int(args.amount)
 
     # Generating images
-    logger.info(f"Generating {args.amount} images")
-    for i in tqdm(range(args.amount), desc="Generating images"):
+    logger.info(f"Generating {am} images")
+    for i in tqdm(range(am), desc="Generating images"):
         caption_id: str = data[i]['captionID'].split("#")[0]
-        image = Image.open(f"{args.input}/{caption_id}").convert("RGB")
+        if args.amount == "None":
+            used_images.add(caption_id)
+        image = Image.open(f"{args.input}/{caption_id}").convert("RGB").to(device)
         prompt = data[i]['sentence2']
         genImage = pipe(
             prompt=prompt, 
@@ -94,20 +95,26 @@ def main(argv):
             guidance_scale=7.5
         ).images[0]
 
-        genImage.save(f"output/{data[i]['captionID']}.png")
+        genImage.save(f"{args.output}/{data[i]['captionID']}.png")
 
-        if(args.clip):
-            img = Image.open(f"output/{data[i]['captionID']}.png")
-            clip_score = get_clip_score(img, prompt, cp, device=device)
+        if args.clip:
+            clip_score = get_clip_score(genImage, prompt, cp, device=device)
             clip_scores[data[i]['captionID']] = clip_score
         
         #print(f"CLIP score for image {data[i]['captionID']}: {clip_score}")
 
     logger.info("Finished generating images")
-    logger.info("Saving clip scores")
-    if(args.clip):
+    if args.clip:
+        logger.info("Saving clip scores")
         with open("clip_scores.json", "w") as f:
             json.dump(clip_scores, f)
+    if args.fid:
+        logger.info("Calculating fid-score")
+        amount = None if args.amount == "None" else args.amount
+        fid = compute_fid_between_folders(args.input, args.output, amount=amount)
+        logger.info("Finished calculating fid-score")
+        print(f"Calcuted fid score: {fid}")
+
    
 if __name__ == "__main__":
    main(sys.argv)

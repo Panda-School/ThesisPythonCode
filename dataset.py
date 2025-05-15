@@ -8,15 +8,6 @@ import torchvision.models as models
 from scipy import linalg
 import numpy as np
 
-def get_url(caption_id: str, local: bool = False) -> str:
-    """
-    Get the URL for a given caption ID.
-    """
-    if local:
-        return f"http://192.168.2.39/snli-ve/images/{caption_id}"
-    else:
-        return f"https://hazeveld.org/snli-ve/images/{caption_id}"
-
 def calculate_activation_statistics(images, model, device):
     """Calculate activation statistics (mean & covariance) for the given images using InceptionV3"""
     model.eval()
