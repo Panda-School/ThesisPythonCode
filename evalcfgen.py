@@ -1,4 +1,7 @@
 import sys, argparse, torch, json
+from io import BytesIO
+import requests
+
 from huggingface_hub import login
 from diffusers import StableDiffusion3Img2ImgPipeline
 from PIL import Image
@@ -31,18 +34,47 @@ def get_clip_score(genImage, prompt, clip, device="cpu"):
     return clip_score
 
 
+def edit_away(
+    image: Image.Image,
+    caption: str,
+    avoid_sentence: str,
+    sd_pipe: StableDiffusion3Img2ImgPipeline,
+    strength: float = 0.75,
+    guidance_scale: float = 7.5,
+    num_inference_steps: int = 50
+) -> Image.Image:
+    """
+    Edit `image` to preserve `caption` but move it away from `avoid_sentence`.
+    Uses `avoid_sentence` as negative prompt.
+    """
+    result = sd_pipe(
+        prompt=caption,
+        negative_prompt=avoid_sentence,
+        image=image,
+        strength=strength,
+        guidance_scale=guidance_scale,
+        num_inference_steps=num_inference_steps
+    )
+    return result.images[0]
+
+def get_image(caption_id: str) -> Image.Image:
+    """
+    Load an image given its
+    caption_id from a URL.
+    """
+    response = requests.get("https://hazeveld.org/snli-ve/images/"+ caption_id)
+    image = Image.open(BytesIO(response.content)).convert("RGB")
+    return image
+
+
 def main(argv):
     # parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("input", help="Path to folder containing the input images", type=str)
-    parser.add_argument("output", help="Path to folder to place the output images", type=str)
     parser.add_argument("--amount", help='Amount of images to process, choose "None" if all images should be processed', type=str, default="None")
     parser.add_argument("--dataset", help="Dataset jsonl location", type=str, required=True)
     parser.add_argument("--token", help="Hugginface Token", type=str, required=True)
     parser.add_argument("--cuda", help="Use cuda or not", action="store_true")
     parser.add_argument("--verbose", help="Log to terminal or not", action="store_true")
-    parser.add_argument("--clip", help="Calculate clip scores", action="store_true")
-    parser.add_argument("--fid", help="Use fid or not", action="store_true")
     args = parser.parse_args()
 
     loglevel = "DEBUG" if args.verbose else "INFO"
@@ -86,33 +118,32 @@ def main(argv):
         caption_id: str = data[i]['captionID'].split("#")[0]
         if args.amount == "None":
             used_images.add(caption_id)
-        image = Image.open(f"{args.input}/{caption_id}").convert("RGB")
+        image = get_image(caption_id)
+        image.save(f"originalImages/{caption_id}.png")
         prompt = data[i]['sentence2']
-        genImage = pipe(
+        imgTowards = pipe(
             prompt=prompt, 
             image=image,
-            num_inference_steps=30, 
+            num_inference_steps=50,
             guidance_scale=7.5
         ).images[0]
 
-        genImage.save(f"{args.output}/{data[i]['captionID']}.png")
+        imgTowards.save(f"outputTowards/{data[i]['captionID']}.png")
 
-        if args.clip:
-            clip_score = get_clip_score(genImage, prompt, cp, device=device)
-            clip_scores[data[i]['captionID']] = clip_score
-        
-        #print(f"CLIP score for image {data[i]['captionID']}: {clip_score}")
+        imgAway = edit_away(
+            image=image,
+            caption=data[i]['sentence1'],
+            avoid_sentence=prompt,
+            sd_pipe=pipe,
+            strength=0.75,
+            guidance_scale=7.5,
+            num_inference_steps=50
+        )
+
+        imgAway.save(f"outputAway/{data[i]['captionID']}.png")
+
 
     logger.info("Finished generating images")
-    if args.clip:
-        logger.info("Saving clip scores")
-        with open("clip_scores.json", "w") as f:
-            json.dump(clip_scores, f)
-    if args.fid:
-        logger.info("Calculating fid-score")
-        fid = compute_fid_between_folders(args.input, args.output) if args.amount == "None" else compute_fid_between_folders(args.input, args.output, inputImages=used_images)
-        logger.info("Finished calculating fid-score")
-        logger.info(f"Calcuted fid score: {fid}")
 
    
 if __name__ == "__main__":
