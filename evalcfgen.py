@@ -109,6 +109,9 @@ def main(argv):
     else:
         am = int(args.amount)
 
+    # List all files in the outputTowards directory
+    output_files = os.listdir('outputTowards')
+
     # Generating images
     logger.info(f"Generating {am} images")
     for i in tqdm(range(am), desc="Generating images"):
@@ -119,26 +122,30 @@ def main(argv):
         image.save(f"originalImages/{caption_id}.png")
         image = image.resize((512, 512), Image.Resampling.LANCZOS)
         prompt = data[i]['sentence2']
-        imgTowards = pipe(
-            prompt=prompt, 
-            image=image,
-            num_inference_steps=50,
-            guidance_scale=7.5
-        ).images[0]
+        if f"{data[i]['captionID']}.png" not in output_files:
+            imgTowards = pipe(
+                prompt=prompt,
+                image=image,
+                num_inference_steps=50,
+                guidance_scale=7.5
+            ).images[0]
 
-        imgTowards.save(f"outputTowards/{data[i]['captionID']}.png")
+            imgTowards.save(f"outputTowards/{data[i]['captionID']}.png")
 
-        imgAway = edit_away(
-            image=image,
-            caption=data[i]['sentence1'],
-            avoid_sentence=prompt,
-            sd_pipe=pipe,
-            strength=0.75,
-            guidance_scale=7.5,
-            num_inference_steps=50
-        )
+            imgAway = edit_away(
+                image=image,
+                caption=data[i]['sentence1'],
+                avoid_sentence=prompt,
+                sd_pipe=pipe,
+                strength=0.75,
+                guidance_scale=7.5,
+                num_inference_steps=50
+            )
 
-        imgAway.save(f"outputAway/{data[i]['captionID']}.png")
+            imgAway.save(f"outputAway/{data[i]['captionID']}.png")
+        else:
+            logger.warning(f"Image {caption_id} already processed, skipping.")
+            continue
 
 
     logger.info("Finished generating images")
