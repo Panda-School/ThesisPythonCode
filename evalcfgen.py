@@ -117,6 +117,7 @@ def main(argv):
             used_images.add(caption_id)
         image = get_image(caption_id)
         image.save(f"originalImages/{caption_id}.png")
+        image = image.resize((512, 512), Image.Resampling.LANCZOS)
         prompt = data[i]['sentence2']
         imgTowards = pipe(
             prompt=prompt, 
