@@ -67,9 +67,12 @@ def get_image(caption_id: str) -> Image.Image:
     caption_id from a URL.
     """
     response = requests.get("https://hazeveld.org/snli-ve/images/"+ caption_id)
-    image = Image.open(BytesIO(response.content)).convert("RGB")
-    print(caption_id)
-    return image
+    try:
+        image = Image.open(BytesIO(response.content)).convert("RGB")
+        return image
+    except Exception as e:
+        logger.error(f"Error loading image for caption_id {caption_id}: {e}")
+        raise e
 
 
 def main(argv):
@@ -150,7 +153,6 @@ def main(argv):
             imgAway.save(f"outputAway/{data[i]['captionID']}.png")
         else:
             logger.warning(f"Image {caption_id} already processed, skipping.")
-            cls()
             continue
 
 
