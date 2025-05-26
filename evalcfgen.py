@@ -113,7 +113,7 @@ def main(argv):
     logger.info(f"Generating {am} images")
     for i in tqdm(range(am), desc="Generating images"):
         caption_id: str = data[i]['captionID'].split("#")[0]
-        if args.amount == "None":
+        if args.amount != "None":
             used_images.add(caption_id)
         image = get_image(caption_id)
         image.save(f"originalImages/{caption_id}.png")
