@@ -58,6 +58,9 @@ def edit_away(
     )
     return result.images[0]
 
+def cls():
+    os.system('cls' if os.name=='nt' else 'clear')
+
 def get_image(caption_id: str) -> Image.Image:
     """
     Load an image given its
@@ -65,6 +68,7 @@ def get_image(caption_id: str) -> Image.Image:
     """
     response = requests.get("https://hazeveld.org/snli-ve/images/"+ caption_id)
     image = Image.open(BytesIO(response.content)).convert("RGB")
+    print(caption_id)
     return image
 
 
@@ -146,6 +150,7 @@ def main(argv):
             imgAway.save(f"outputAway/{data[i]['captionID']}.png")
         else:
             logger.warning(f"Image {caption_id} already processed, skipping.")
+            cls()
             continue
 
 
