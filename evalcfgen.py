@@ -39,8 +39,6 @@ def edit_away(
     caption: str,
     avoid_sentence: str,
     sd_pipe: StableDiffusion3Img2ImgPipeline,
-    width: int = 512,
-    height: int = 512,
     strength: float = 0.75,
     guidance_scale: float = 7.5,
     num_inference_steps: int = 50
@@ -53,8 +51,6 @@ def edit_away(
         prompt=caption,
         negative_prompt=avoid_sentence,
         image=image,
-        width=width,
-        height=height,
         strength=strength,
         guidance_scale=guidance_scale,
         num_inference_steps=num_inference_steps
@@ -69,42 +65,6 @@ def get_image(caption_id: str) -> Image.Image:
     response = requests.get("https://hazeveld.org/snli-ve/images/"+ caption_id)
     image = Image.open(BytesIO(response.content)).convert("RGB")
     return image
-
-
-def nearest_divisible_by_16(n):
-    """
-    Find the nearest integer divisible by 16.
-
-    Args:
-        n (int or float): The input number
-
-    Returns:
-        int: The nearest integer divisible by 16
-
-    Examples:
-        >>> nearest_divisible_by_16(10)
-        16
-        >>> nearest_divisible_by_16(25)
-        32
-        >>> nearest_divisible_by_16(8)
-        16
-        >>> nearest_divisible_by_16(16)
-        16
-        >>> nearest_divisible_by_16(-10)
-        -16
-    """
-    # Convert to int if it's a float
-    n = int(n)
-
-    # Find the lower and upper bounds
-    lower = (n // 16) * 16
-    upper = lower + 16
-
-    # Return the nearest one
-    if abs(n - lower) <= abs(n - upper):
-        return lower
-    else:
-        return upper
 
 
 def main(argv):
@@ -157,16 +117,10 @@ def main(argv):
             used_images.add(caption_id)
         image = get_image(caption_id)
         image.save(f"originalImages/{caption_id}.png")
-
-        width = nearest_divisible_by_16(image.width)
-        height = nearest_divisible_by_16(image.height)
-
         prompt = data[i]['sentence2']
         imgTowards = pipe(
             prompt=prompt, 
             image=image,
-            width=width,
-            height=height,
             num_inference_steps=50,
             guidance_scale=7.5
         ).images[0]
@@ -178,8 +132,6 @@ def main(argv):
             caption=data[i]['sentence1'],
             avoid_sentence=prompt,
             sd_pipe=pipe,
-            width=width,
-            height=height,
             strength=0.75,
             guidance_scale=7.5,
             num_inference_steps=50
