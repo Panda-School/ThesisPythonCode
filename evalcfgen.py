@@ -83,9 +83,6 @@ def main(argv):
     #setup logging
     logger.info("Starting the programs")
 
-    if(args.clip):
-        import clip as cp
-
     # Login to HuggingFace
     login(token=args.token)
     logger.info("Successfully logged in to HuggingFace")
