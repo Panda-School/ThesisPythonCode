@@ -1,6 +1,7 @@
 import sys, argparse, torch, json
 from io import BytesIO
 import requests
+import os
 
 from huggingface_hub import login
 from diffusers import StableDiffusion3Img2ImgPipeline
